@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/search")
-@CrossOrigin(origins = "http://localhost:3000") // Allow React dev server
+@CrossOrigin(origins = "https://search-assistant-frontend-35iuoujro-vishalarya07s-projects.vercel.app") // Allow React dev server
 public class SearchController {
     private final QwenAiService qwenAiService;
 
