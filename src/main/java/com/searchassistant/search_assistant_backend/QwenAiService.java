@@ -1,48 +1,45 @@
 package com.searchassistant.search_assistant_backend;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import java.util.*;
 
 @Service
 public class QwenAiService {
-    @Value("${qwen.api.url}")
-    private String qwenApiUrl;
-
-    @Value("${qwen.api.key}")
-    private String qwenApiKey;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Value("${gemini.api.key}")
+    private String geminiApiKey;
 
     public String search(String query) {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    headers.set("Authorization", "Bearer " + qwenApiKey);
-
-    Map<String, Object> body = new HashMap<>();
-    body.put("model", "qwen/qwq-32b:free");
-    List<Map<String, String>> messages = new ArrayList<>();
-    Map<String, String> userMessage = new HashMap<>();
-    userMessage.put("role", "user");
-    userMessage.put("content", query);
-    messages.add(userMessage);
-    body.put("messages", messages);
-
-    HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-    ResponseEntity<String> response = restTemplate.postForEntity(qwenApiUrl, request, String.class);
-
-    // Parse the JSON and extract the assistant's message
-    try {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode root = mapper.readTree(response.getBody());
-        return root.path("choices").get(0).path("message").path("content").asText();
-    } catch (Exception e) {
-        // fallback: return the whole response if parsing fails
-        return response.getBody();
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+        String requestBody = String.format(
+            "{\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}",
+            query.replace("\"", "\\\"")
+        );
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Content-Type", "application/json")
+                .header("X-goog-api-key", geminiApiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            // Parse the Gemini response to extract only the text from the first candidate
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.body());
+            JsonNode textNode = root.path("candidates").get(0).path("content").path("parts").get(0).path("text");
+            if (!textNode.isMissingNode()) {
+                return textNode.asText();
+            } else {
+                return response.body(); // fallback
+            }
+        } catch (Exception e) {
+            return "{\"error\": \"" + e.getMessage() + "\"}";
+        }
     }
-}
 }

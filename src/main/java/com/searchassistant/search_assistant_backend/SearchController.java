@@ -15,8 +15,15 @@ public class SearchController {
     }
 
     @PostMapping
-    public String search(@RequestBody SearchRequest request) {
-        return qwenAiService.search(request.getQuery());
+    public Object search(@RequestBody SearchRequest request) {
+        try {
+            return qwenAiService.search(request.getQuery());
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the error to the backend terminal
+            java.util.Map<String, String> error = new java.util.HashMap<>();
+            error.put("error", e.getMessage());
+            return error;
+        }
     }
 
     public static class SearchRequest {
